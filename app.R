@@ -60,73 +60,77 @@ ui <- fluidPage(useShinyjs(),
             column(width = 12, br(),
               fluidRow(
                 column(width = 4,
-                       selectInput("Cstyle", label = "Combat Style",
-                                   choices = c("Two-Weapon", "Two-Handed", 
-                                               "Single-Weapon",
-                                               "Unarmed", "Wolf", "Bear")
-                       )
+                  wellPanel(selectInput("Cstyle", label = "Combat Style",
+                    choices = c("Two-Weapon / Unarmed"="twfu", "Two-Handed"="thf", 
+                                "Single-Weapon / S&B"="swfsb", "Wolf / Bear"="animal")
+                    )
+                  )
                 ),
-                # Need to figure out how to toggle off feats that aren't displayed
                 column(width = 8,
                   fluidRow(
-                       conditionalPanel(condition = 'input.Cstyle == "Two-Weapon"',
+                    ### Two-weapon fighting / Unarmed.  Difference b/c for BAB / attack rate differences
+                       conditionalPanel(condition = 'input.Cstyle == "twfu"',
                           column(width = 2,
+                            h5(tags$b("TWF Feats")),
                             checkboxInput("TWF", "TWF", T),
-                            p(id = "TWF",
-                              checkboxInput("ITWF", "ITWF", T), condition = "TWF"),
-                            p(id = "ITWF",
-                              checkboxInput("GTWF", "GTWF", T), condition = "ITWF"),
-                          textOutput("totTWF")
+                            uiOutput("ITWF"), uiOutput("GTWF"), textOutput("totTWF")
+                          ),
+                          column(width = 2,
+                            checkboxInput("Unarmed", "Unarmed", F)
                           ),
                           column(width = 4,
                             textInput("OffTWF", "Offhand Attack %", value = "20"),
                             textInput("OffDBS", "Offhand Doublestrike %", value = "20"))
                           ),
-                       conditionalPanel(condition = 'input.Cstyle == "Two-Handed"',
+                    ### Two-handed fighting
+                       conditionalPanel(condition = 'input.Cstyle == "thf"',
                           column(width = 2,
                             checkboxInput("THF", "THF", T),
-                            p(id = "THF",
-                              checkboxInput("ITHF", "ITHF", T), condition = "THF"),
-                            p(id = "ITHF",
-                              checkboxInput("GTHF", "GTHF", T), condition = "ITHF")
+                            uiOutput("ITHF"), uiOutput("GTHF"), textOutput("totTHF")
                           ),
                           column(width = 4,
                             textInput("GlancingC", "Glancing Blows % Damage", value = "20"),
                             textInput("GlancingD", "Glancing Blows % Proc", value = "20")
                           )
                        ),
-                       conditionalPanel(condition = 'input.Cstyle == "Single-Weapon"',
+                    ### Single-weapon fighting and Sword-and-board
+                    ##Add disclaimers here about SWF - S&B *only* for bards
+                       conditionalPanel(condition = 'input.Cstyle == "swfsb"',
                           column(width = 2,
                             checkboxInput("SWF", "SWF", T),
-                            p(id = "SWF",
-                              checkboxInput("ISWF", "ISWF", T), condition = "SWF"),
-                            p(id = "ISWF",
-                              checkboxInput("GSWF", "GSWF", T), condition = "ISWF"),
+                            uiOutput("ISWF"), uiOutput("GSWF")
+                          ),
+                          column(width = 2,
                             checkboxInput("ISB", "Improved Shield Bashing", F),
                             checkboxInput("SM", "Shield Mastery", F),
-                            p(id = "SM",
-                              checkboxInput("ISM", "ISWF", F), condition = "SM"),
+                            uiOutput("ISM"),
                             checkboxInput("LSM", "Legendary Shield Mastery (Sentinel)", F)
                           ),
-                          column(width = 4, "Additional bonuses",
-                             textInput("BashingC", "% Shield Bash", value = "20")
+                          column(width = 4, h5("Additional bonuses"),
+                             textInput("BashC", "% Shield Bash", value = "20")
                           )
-                       )
+                       ),
+                    # ### Animal Forms.  Differences in attack rate
+                        conditionalPanel(condition = 'input.Cstyle == "animal"',
+                          column(width = 4,
+                            radioButtons("NF", "Natural Fighting Feats", choices = c(0, 1, 2, 3), inline = T)
+                          ),
+                          column(width = 4,
+                            radioButtons("form", "Form",
+                                         choices = c("Wolf"="wolf", "Winter Wolf"="wwolf",
+                                                     "Bear"="bear", "Dire Bear"="dbear"), inline = T )
+                          )
+                    )
                   )
                 )
               )
             )
           ),
           # Fighting Style
-          # SWF: attack rate bonus, bashing
           # Wolf
           # Bear
           # Unarmed
-          # Bow
-          # Repeater
-          # Inquisitive
-          # Shuriken: Expertise, Ninja Spy, LD boost
-          # Other thrown
+
           # http://mmlddo.com/DDODPS.html
           tabPanel("Ranged",
             column(width=12, br(),
@@ -136,6 +140,15 @@ ui <- fluidPage(useShinyjs(),
                                         "Inquisitive", "Shuriken", "Thrown")
                 )
               )
+              # Ranged is interesting because combat style affects animation but (mostly) not options.
+                  # PBS, PS vs. IPS, Quick Draw, Rapid Reload, Rapid Shot
+                  # Zen Archery, Manyshot, Fusillade need to count as conditional boosts
+              
+              # Bow
+              # Repeater
+              # Inquisitive
+              # Shuriken: Expertise, Ninja Spy, LD boost
+              # Other thrown
             )
           )
         )
@@ -144,17 +157,49 @@ ui <- fluidPage(useShinyjs(),
 
   
 server <- shinyServer(function(input, output, session) {
-  observe({
-    toggle(id = "ITWF", condition = input$TWF)
-    toggle(id = "GTWF", condition = input$ITWF)
-    toggle(id = "ITHF", condition = input$THF)
-    toggle(id = "GTHF", condition = input$ITHF)
+
+  output$ITWF <- renderUI ({
+    if(input$TWF==1 && input$Cstyle=='twfu') {
+      checkboxInput("ITWF", "ITWF", F) }
   })
-  observe({
-    updateCheckboxInput(session, inputId = "GTWF", label = NULL, value = "input$ITWF == 0")
+  output$GTWF <- renderUI ({
+    if(all(input$ITWF==1,input$TWF==1,input$Cstyle=='twfu')) {
+      checkboxInput("GTWF", "GTWF", F) }
   })
+  
+  output$ITHF <- renderUI ({
+    if(input$THF==1 && input$Cstyle == 'thf') {
+      checkboxInput("ITHF", "ITHF", F) }
+  })
+  output$GTHF <- renderUI ({
+    if(all(input$ITHF==1,input$THF==1,input$Cstyle == 'thf')) {
+      checkboxInput("GTHF", "GTHF", F) }
+  })
+  
+  output$ISWF <- renderUI ({
+    if(input$SWF==1 && input$Cstyle == 'swfsb') {
+      checkboxInput("ISWF", "ISWF", F) }
+  })
+  output$GSWF <- renderUI ({
+    if(all(input$ISWF==1,input$SWF==1,input$Cstyle == 'swfsb')) {
+      checkboxInput("GSWF", "GSWF", F) }
+  })
+  
+  output$ISM <- renderUI ({
+    if(input$SM==1 && input$Cstyle == 'swfsb'){
+      checkboxInput("ISM", "ISM", F)
+    }
+  })
+  
   output$totTWF <- renderText({
-    paste0(20 + 20*input$TWF + 20*input$ITWF + 20*input$GTWF)
+    paste(20 + 20*input$TWF +
+             20*ifelse(!is.null(input$ITWF),input$ITWF*input$TWF, 0) +
+             20*ifelse(!is.null(input$GTWF),input$GTWF*input$ITWF*input$TWF, 0))
+  })
+  output$totTHF <- renderText({
+    paste(20 + 10*input$THF +
+            10*ifelse(!is.null(input$ITHF),input$ITHF*input$THF, 0) +
+            10*ifelse(!is.null(input$GTHF),input$GTHF*input$ITHF*input$THF, 0))
   })
 })
 
