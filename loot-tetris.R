@@ -3,56 +3,56 @@ library(httr)
 library(reshape2)
 library(tidyr)
 options(stringsAsFactors = F)
-
-test <- readLines("https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
-test <- gsub("")
-
-testline <- unlist(strsplit(test, "[<>]"))
-testline <- testline[testline != ""]
-testline <- testline[testline != "/div"]
-
-
-testing <- as.data.frame(testline, stringsAsFactors = F)
-
-
-https://ddowiki.com/api.php
-
-raw.result <- GET(url = "https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
-
-this.raw <- rawToChar(raw.result$content)
-this.raw2 <- gsub("[\t]+", "\t", this.raw)
-this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
-
-# Remove tags
-test <- gsub("<(.|\n)*?>","",this.rawsplit)
-test3 <- do.call('rbind', strsplit(test, "\t"))
-
-test <- gsub("\t", "", test)
-test2 <- test[test != ""]
-test2 <- as.data.frame(test2)
-
-
-
-
-this.raw <- rawToChar(raw.result$content)
-this.raw2 <- gsub("[\t]+", "\t", this.raw)
-this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
-working <- sapply(this.rawsplit, function(x) {
-  x <- substr(x, 0, el(gregexpr("Icon tooltip.png", x)))
-})
-working2 <- working[working != ""]
-working2 <- gsub("[\t]+", "\t", working2)
-working2 <- gsub("<(.|\n)*?>","",working2)
-working3 <- data.frame(working2, row.names = NULL)
-
-test <- gsub("<(.|\n)*?>","",this.rawsplit)
-test2 <- do.call('rbind', strsplit(test, "\t"))
-test3 <- gsub("\t", "", test2)
-test3 <- as.data.frame(test3[test3 != ""])
-
-
-
-
+# 
+# test <- readLines("https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
+# test <- gsub("")
+# 
+# testline <- unlist(strsplit(test, "[<>]"))
+# testline <- testline[testline != ""]
+# testline <- testline[testline != "/div"]
+# 
+# 
+# testing <- as.data.frame(testline, stringsAsFactors = F)
+# 
+# 
+# https://ddowiki.com/api.php
+# 
+# raw.result <- GET(url = "https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
+# 
+# this.raw <- rawToChar(raw.result$content)
+# this.raw2 <- gsub("[\t]+", "\t", this.raw)
+# this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
+# 
+# # Remove tags
+# test <- gsub("<(.|\n)*?>","",this.rawsplit)
+# test3 <- do.call('rbind', strsplit(test, "\t"))
+# 
+# test <- gsub("\t", "", test)
+# test2 <- test[test != ""]
+# test2 <- as.data.frame(test2)
+# 
+# 
+# 
+# 
+# this.raw <- rawToChar(raw.result$content)
+# this.raw2 <- gsub("[\t]+", "\t", this.raw)
+# this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
+# working <- sapply(this.rawsplit, function(x) {
+#   x <- substr(x, 0, el(gregexpr("Icon tooltip.png", x)))
+# })
+# working2 <- working[working != ""]
+# working2 <- gsub("[\t]+", "\t", working2)
+# working2 <- gsub("<(.|\n)*?>","",working2)
+# working3 <- data.frame(working2, row.names = NULL)
+# 
+# test <- gsub("<(.|\n)*?>","",this.rawsplit)
+# test2 <- do.call('rbind', strsplit(test, "\t"))
+# test3 <- gsub("\t", "", test2)
+# test3 <- as.data.frame(test3[test3 != ""])
+# 
+# 
+# 
+# 
 
 
 
