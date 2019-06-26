@@ -124,25 +124,44 @@ gloves <- data.frame(cbind(gearNames, MLs, allEffects))
 gloves$augs <- unlist(regexec("Augment Slot", gloves$allEffects))
 gloves$feats <- unlist(regexec("[a-z]Feat:", gloves$allEffects))
 gloves$charges <- unlist(regexec("Charges:", gloves$allEffects))
+gloves$CL <- unlist(regexec("Caster level:", gloves$allEffects))
+gloves$set <- unlist(regexec("Set", gloves$allEffects))
+
+
 
 gloves$upgrades <- unlist(regexec("^ Upgradeable", gloves$allEffects))
 gloves$historic <- unlist(gregexpr("(historic)", gloves$gearNames))
 
-# Deduplicate crystal cove gear
+# Just leave duplicated, outdated crystal cove gear...
 
-# for dedup
+
 gloves$colons <- unlist(regexec(":", gloves$allEffects))
-gloves <- gloves %>% mutate(allEffects = ifelse(augs > 0,
+gloves <- gloves %>% filter(upgrades < 0, historic < 0) %>%
+                    mutate(allEffects = ifelse(augs > 0,
                            substr(allEffects, 0, augs+11),
                           allEffects)) %>%
-                    filter(upgrades < 0, historic < 0) %>%
                     mutate(allEffects = ifelse(feats > 0,
                             substr(allEffects, 0, feats),
+                          allEffects)) %>%
+                    mutate(allEffects = ifelse(charges > 0,
+                          paste0(":Spell", substr(allEffects, 0, CL-1)),
+                          allEffects)) %>%
+                    mutate(set = ifelse(set > 0,
+                            allEffects,
+                          "None"))
+
+gloves$junction <- unlist(regexpr("([a-z]|[0-9]|[%]|[IVX])[A-Z]", gloves$allEffects))
+
+
+
+test <- gloves %>% mutate(allEffects = ifelse(junction > 0,
+                                              substr(allEffects, 0, junction),
                           allEffects))
 
-test <- gloves %>% mutate(allEffects = ifelse(charges+feats+augs < 0,
-                                              substr(allEffects, 0, colons),
-                                              allEffects))
+
+# test <- gloves %>% mutate(allEffects = ifelse(charges+feats+augs < 0,
+#                                               substr(allEffects, 0, colons),
+#                                               allEffects))
 
 test <- gloves %>% str_which(allEffects, "Feat:")
   
