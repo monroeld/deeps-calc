@@ -3,57 +3,8 @@ library(httr)
 library(reshape2)
 library(tidyr)
 library(tidyverse)
+library(utils)
 options(stringsAsFactors = F)
-# 
-# test <- readLines("https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
-# test <- gsub("")
-# 
-# testline <- unlist(strsplit(test, "[<>]"))
-# testline <- testline[testline != ""]
-# testline <- testline[testline != "/div"]
-# 
-# 
-# testing <- as.data.frame(testline, stringsAsFactors = F)
-# 
-# 
-# https://ddowiki.com/api.php
-# 
-# raw.result <- GET(url = "https://ddowiki.com/page/Item:Agony,_the_Knife_in_the_Dark")
-# 
-# this.raw <- rawToChar(raw.result$content)
-# this.raw2 <- gsub("[\t]+", "\t", this.raw)
-# this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
-# 
-# # Remove tags
-# test <- gsub("<(.|\n)*?>","",this.rawsplit)
-# test3 <- do.call('rbind', strsplit(test, "\t"))
-# 
-# test <- gsub("\t", "", test)
-# test2 <- test[test != ""]
-# test2 <- as.data.frame(test2)
-# 
-# 
-# 
-# 
-# this.raw <- rawToChar(raw.result$content)
-# this.raw2 <- gsub("[\t]+", "\t", this.raw)
-# this.rawsplit <- unlist(strsplit(this.raw2, "\n"))
-# working <- sapply(this.rawsplit, function(x) {
-#   x <- substr(x, 0, el(gregexpr("Icon tooltip.png", x)))
-# })
-# working2 <- working[working != ""]
-# working2 <- gsub("[\t]+", "\t", working2)
-# working2 <- gsub("<(.|\n)*?>","",working2)
-# working3 <- data.frame(working2, row.names = NULL)
-# 
-# test <- gsub("<(.|\n)*?>","",this.rawsplit)
-# test2 <- do.call('rbind', strsplit(test, "\t"))
-# test3 <- gsub("\t", "", test2)
-# test3 <- as.data.frame(test3[test3 != ""])
-# 
-# 
-# 
-# 
 
 
 
@@ -109,31 +60,33 @@ allEffects <- c(unlist(str_split(Effects, "@@")))
 MLs <- as.character(fulltable[1, mlInds])
 MLs <- trimws(substr(MLs, 0, c(unlist(regexpr("@@", MLs)))-1), which = "left")
 MLs <- as.numeric(gsub("None", 0, MLs))
-MLs <- rep(MLs, times = nEffects)
+ML <- rep(MLs, times = nEffects)
 
 # Names never have colons in them!
-gearNames <- as.character(fulltable[1, setdiff(c(1:ncol(fulltable)),
+gearName <- as.character(fulltable[1, setdiff(c(1:ncol(fulltable)),
                                                colons)])
-gearNames <- rep(gearNames, times = nEffects)
+gearName <- rep(gearName, times = nEffects)
 
 
-gloves <- data.frame(cbind(gearNames, MLs, allEffects))
+gloves <- data.frame(cbind(gearName, ML, allEffects))
+# Just leave duplicated, outdated crystal cove gear for now
+#   When effects are finalized, maybe compare toupper(gearName)
 
+# Working dataset complete!  Time for some kludging and dplyr
 
-# Working dataset complete!  Time for some dplyr
+# Swap out weird characters after Insightful, Quality, etc
+gloves$allEffects <- gsub("[&][^a-zA-Z]+;", " ", gloves$allEffects)
+
 gloves$augs <- unlist(regexec("Augment Slot", gloves$allEffects))
 gloves$feats <- unlist(regexec("[a-z]Feat:", gloves$allEffects))
 gloves$charges <- unlist(regexec("Charges:", gloves$allEffects))
 gloves$CL <- unlist(regexec("Caster level:", gloves$allEffects))
 gloves$set <- unlist(regexec("Set", gloves$allEffects))
-
-
-
 gloves$upgrades <- unlist(regexec("^ Upgradeable", gloves$allEffects))
-gloves$historic <- unlist(gregexpr("(historic)", gloves$gearNames))
+gloves$historic <- unlist(gregexpr("(historic)", gloves$gearName))
 
-# Just leave duplicated, outdated crystal cove gear...
-
+# Doesn't work for DR. Can't mod junction to work with capital letters
+  # Tooltip says "Damage Reduction" so it's not a repeat.  Maybe hard-code?
 
 gloves$colons <- unlist(regexec(":", gloves$allEffects))
 gloves <- gloves %>% filter(upgrades < 0, historic < 0) %>%
@@ -146,87 +99,76 @@ gloves <- gloves %>% filter(upgrades < 0, historic < 0) %>%
                     mutate(allEffects = ifelse(charges > 0,
                           paste0(":Spell", substr(allEffects, 0, CL-1)),
                           allEffects)) %>%
-                    mutate(set = ifelse(set > 0,
-                            allEffects,
-                          "None"))
-
-gloves$junction <- unlist(regexpr("([a-z]|[0-9]|[%]|[IVX])[A-Z]", gloves$allEffects))
+                    mutate(set = ifelse(set > 0, allEffects, "None"))
 
 
+# Deduplicate effects with junctions
+gloves$junction <- unlist(regexpr("([a-z]|[0-9]|[%]|[IVX]|[)])[A-Z]", gloves$allEffects))
+gloves <- gloves %>% mutate(details = ifelse(junction > 0,
+                                             substring(allEffects, 2*junction+1),
+                                             "None")) %>%
+                     mutate(allEffects = ifelse(junction > 0,
+                                                substr(allEffects, 0, junction),
+                                                allEffects))
 
-test <- gloves %>% mutate(allEffects = ifelse(junction > 0,
-                                              substr(allEffects, 0, junction),
-                          allEffects))
+# Some things didn't have junctions because of extra spaces. They have colons though.  Split at the colon
+gloves$colons <- unlist(regexec(":", gloves$allEffects))
+gloves$setcolons <- unlist(regexec(":", gloves$set))
+gloves$setjunction <- unlist(regexpr("([a-z]|[0-9]|[%]|[IVX]|[)])[A-Z]", gloves$set))
 
+# Make the remaining junction changes and remove extra columns
+gloves <- gloves %>%
+  mutate(deets = ifelse(charges+feats < 0 & colons > 0, 1, 0)) %>%
+  mutate(details = ifelse(deets == 1 & details == "None",
+                             substring(allEffects, colons+1),
+                             details)) %>%
+  mutate(allEffects = ifelse(charges+feats < 0 & colons > 0,
+                            substr(allEffects, 0, floor(colons)/2),
+                            allEffects)) %>%
+                     mutate(set = ifelse(setcolons > 0,
+                            substr(set, 0, floor(setcolons)/2),
+                            set)) %>%
+                    mutate(set = ifelse(setjunction > 0,
+                                        substr(set, 0, setjunction),
+                                        set)) %>%
+                    select(-c(augs, feats, charges, CL, junction,
+                              setcolons, setjunction, upgrades, historic, colons, deets))
 
-# test <- gloves %>% mutate(allEffects = ifelse(charges+feats+augs < 0,
-#                                               substr(allEffects, 0, colons),
-#                                               allEffects))
-
-test <- gloves %>% str_which(allEffects, "Feat:")
-  
-  mutate(Effs = ifelse(str_which(allEffects, "Feat:"), 1, 0))
-
-
-
-
-# Before we do something crazy like below, see if we can get the other columns as vectors
-  # If so, can we repeat each one by the lengths of splits' sub-arrays and bind those?
-
-
-# Might need to change Effects3's elements to arrays now
-test2 <- lapply(Effects3$splits, function(x)
-          unname(sapply(unlist(x), function(y) {
-            
-            # If "Feat:", split on second one
-            y <- c(unlist(ifelse(unlist(gregexpr("Feat:", y)) > 1,
-                        trimws(substring(y, 0,
-                                c(unlist(gregexpr("Feat:",
-                                        y[which(regexec("Feat:",y) > -1)])))
-                                ),
-                              which = "left")[2],
-                        
-            # Otherwise, split on the colon
-                    ifelse(unlist(regexec(":", y)) > 1,
-                          trimws(substring(y, 0,
-                                   unlist(regexec(":", y))),
-                          which = "left"),
-                   y)
-            # For some reason the feat generates a second copy...
-                ))[1])
-            
-          # Remove final character, halve length because href tags
-            #  (now removed) cause repetition
-                  y <- substring(y, 0, nchar(y)-1)
-                  y <- trimws(ifelse(startsWith(y, "Feat"), y,
-                                     substring(y, 0, nchar(y)/2)), which = "right")
-                  
-          # This may be the place to do all of the filtering?
-                  # Seems to work pretty well except for certain named things
-                
-          }
-          
-        ))
-)
-
-# Still gonna be dicey later, but there are no commas so I can separate
-# different effects with those
+gloves$colons <- unlist(regexec(":", gloves$details))
+gloves <- gloves %>% mutate(details = ifelse(colons > 0,
+                                             substring(details, colons+1),
+                                             details)) %>% select(-colons)
 
 
-# Works up until here for sure
+# Create a new one to mess with.  This can get culled later
+newgloves <- gloves
+newgloves$allEffects <- trimws(newgloves$allEffects, which = "both")
+
+newgloves$bonus <- unlist(regexpr("( [+]+[0-9]+)|( [IVX]+$)|( [0-9]+)",
+                                  newgloves$allEffects))
 
 
+newgloves <- newgloves %>% mutate(Effect = ifelse(bonus > 0,
+                                  trimws(substr(allEffects, 0, bonus), which = "both"),
+                                                  allEffects)) %>%
+                           mutate(Bonus = ifelse(bonus > 0,
+                                   trimws(substring(allEffects, bonus), which = "both"),
+                                   "None")) %>% select(-c(allEffects, bonus))
+                           
 
+newgloves$Bonus <- gsub("[+]|[%]", "", newgloves$Bonus)
+newgloves$Effect <- gsub("( [-]$)|([-]$)", "", newgloves$Effect)
+suppressWarnings({ newgloves <- newgloves %>% mutate(Bonus = ifelse(!is.na(as.numeric(as.roman(Bonus))),
+                                                as.numeric(as.roman(Bonus)),
+                                                Bonus)) })
 
+final <- newgloves
 
+# Time to classify effects, I guess...
 
-
-
-# This line cuts off anything after an augment, which does happen
-#   Run it later on allEffs
-Augless <- mutate(Eff2, Effs = ifelse(c(unlist(regexpr("Augment Slot", Effs))) > 1,
-                                   substr(Effs, 0, c(unlist(regexpr("Augment Slot", Effs)))+11),
-                                    Effs))
-
-
-
+types <- c("Enhancement", "Equipment", "Profane", "Exceptional", "Insight", "Quality", "Competence")
+test <- data.frame(do.call(cbind, lapply(types, function(x) regexec(x, final$Effect))))
+colnames(test) <- types
+test2 <- data.frame(do.call(cbind, lapply(types, function(x) regexec(x, final$details))))
+colnames(test2) <- types
+final <- cbind(final, test)
