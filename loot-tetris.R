@@ -167,8 +167,14 @@ final <- newgloves
 # Time to classify effects, I guess...
 
 types <- c("Enhancement", "Equipment", "Profane", "Exceptional", "Insight", "Quality", "Competence")
-test <- data.frame(do.call(cbind, lapply(types, function(x) regexec(x, final$Effect))))
-colnames(test) <- types
+test <- data.frame(do.call(cbind,
+                           lapply(types, function(x) regexec(x, final$Effect, ignore.case = T))))
+
+
+
+
 test2 <- data.frame(do.call(cbind, lapply(types, function(x) regexec(x, final$details))))
 colnames(test2) <- types
-final <- cbind(final, test)
+final2 <- cbind(final, test, test2)
+
+final2$type <- 

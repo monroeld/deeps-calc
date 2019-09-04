@@ -17,8 +17,7 @@
   # Bow
   # Repeater
   # Inquisitive
-  # Shuriken: Expertise, Ninja Spy, LD boost
-  # Other thrown
+  # Thrown, incl Shuriken: Expertise, Ninja Spy, LD boost # Other thrown
   # http://mmlddo.com/DDODPS.html
 
 # MP, RP
@@ -137,7 +136,7 @@ ui <- fluidPage(useShinyjs(),
               fluidRow(
                 selectInput("CStyle", label = "Combat Style",
                             choices = c("Bow", "Crossbow", "Repeater",
-                                        "Inquisitive", "Shuriken", "Thrown")
+                                        "Inquisitive", "Thrown")
                 )
               )
               # Ranged is interesting because combat style affects animation but (mostly) not options.
@@ -147,8 +146,7 @@ ui <- fluidPage(useShinyjs(),
               # Bow
               # Repeater
               # Inquisitive
-              # Shuriken: Expertise, Ninja Spy, LD boost
-              # Other thrown
+              # Thrown
             )
           )
         )
